@@ -3,10 +3,10 @@ package tui
 import (
 	"fmt"
 
-	"ssh-tool/internal/config"
-	"ssh-tool/internal/history"
-	"ssh-tool/internal/model"
-	"ssh-tool/internal/sshconfig"
+	"sshh/internal/config"
+	"sshh/internal/history"
+	"sshh/internal/model"
+	"sshh/internal/sshconfig"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -127,7 +127,7 @@ func (m *Model) refreshList() {
 
 func (m Model) renderListView() string {
 	if !m.listInited {
-		return titleStyle.Render("SSH-TOOL") + "\n\n" + helpStyle.Render("Loading...")
+		return titleStyle.Render("SSHH") + "\n\n" + helpStyle.Render("Loading...")
 	}
 	return m.serverList.View() + "\n" + listHelp()
 }

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"ssh-tool/internal/config"
-	"ssh-tool/internal/history"
-	"ssh-tool/internal/sshexec"
-	"ssh-tool/internal/tui"
+	"sshh/internal/config"
+	"sshh/internal/history"
+	"sshh/internal/sshexec"
+	"sshh/internal/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -36,7 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Direct connect mode: ssh-tool <name>
+	// Direct connect mode: sshh <name>
 	if len(os.Args) > 1 {
 		name := os.Args[1]
 		_, srv := cfg.FindByName(name)

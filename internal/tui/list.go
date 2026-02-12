@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -61,7 +61,7 @@ func newServerList(items []list.Item, width, height int) list.Model {
 	delegate.Styles.SelectedDesc = selectedStyle
 
 	l := list.New(items, delegate, width, height)
-	l.Title = "SSH-TOOL"
+	l.Title = "SSHH"
 	l.Styles.Title = titleStyle
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)

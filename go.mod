@@ -1,4 +1,4 @@
-module ssh-tool
+module sshh
 
 go 1.25.6
 

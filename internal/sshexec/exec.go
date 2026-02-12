@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 )
 
 // Connect replaces the current process with an ssh connection to the server.

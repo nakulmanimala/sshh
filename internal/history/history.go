@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"ssh-tool/internal/config"
-	"ssh-tool/internal/model"
+	"sshh/internal/config"
+	"sshh/internal/model"
 )
 
 // History tracks when each server was last connected to.

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

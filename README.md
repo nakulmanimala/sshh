@@ -1,4 +1,4 @@
-# SSH-TOOL
+# SSHH
 
 A fast, interactive terminal tool for managing and connecting to SSH servers. Built with Go and Bubble Tea.
 
@@ -20,7 +20,7 @@ go install .
 Or build manually:
 
 ```bash
-go build -o ssh-tool .
+go build -o sshh .
 ```
 
 ## Usage
@@ -28,13 +28,13 @@ go build -o ssh-tool .
 Launch the interactive TUI:
 
 ```bash
-./ssh-tool
+./sshh
 ```
 
 Connect directly to a saved server by name:
 
 ```bash
-./ssh-tool my-server
+./sshh my-server
 ```
 
 ## Keybindings
@@ -61,7 +61,7 @@ Connect directly to a saved server by name:
 
 ## Configuration
 
-Server configs are stored in `~/.ssh-tool/config.yaml`:
+Server configs are stored in `~/.sshh/config.yaml`:
 
 ```yaml
 servers:
@@ -75,7 +75,7 @@ servers:
       - web
 ```
 
-Connection history is tracked in `~/.ssh-tool/history.json`.
+Connection history is tracked in `~/.sshh/history.json`.
 
 ## Requirements
 

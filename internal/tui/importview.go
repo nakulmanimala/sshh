@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

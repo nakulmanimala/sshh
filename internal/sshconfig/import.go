@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 )
 
 // Parse reads ~/.ssh/config and returns discovered server entries.

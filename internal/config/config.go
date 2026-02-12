@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"ssh-tool/internal/model"
+	"sshh/internal/model"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,13 +14,13 @@ type Config struct {
 	Servers []model.Server `yaml:"servers"`
 }
 
-// Dir returns the config directory path (~/.ssh-tool/).
+// Dir returns the config directory path (~/.sshh/).
 func Dir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".ssh-tool"), nil
+	return filepath.Join(home, ".sshh"), nil
 }
 
 // filePath returns the full path to config.yaml.
