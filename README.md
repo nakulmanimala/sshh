@@ -18,7 +18,7 @@ A fast, interactive terminal tool for managing and connecting to SSH servers. Bu
 <br>
 <br>
 
-<img width="821" height="265" alt="SCR-20260212-jncn" src="https://github.com/user-attachments/assets/ccf54eb8-ba0b-4371-ac96-fe0f96bdb20e" />
+<img width="846" height="270" alt="SCR-20260212-jzqm" src="https://github.com/user-attachments/assets/0df1dc5a-1060-4c54-92dd-58166268b6b2" />
 
 <br>
 <br>
