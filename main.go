@@ -36,6 +36,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	tunnelCfg, err := config.LoadTunnels()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading tunnels: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Direct connect mode: sshh <name>
 	if len(os.Args) > 1 {
 		name := os.Args[1]
@@ -53,7 +59,7 @@ func main() {
 	}
 
 	// TUI mode.
-	m := tui.NewModel(cfg, hist)
+	m := tui.NewModel(cfg, tunnelCfg, hist)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
@@ -62,10 +68,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	fm, ok := finalModel.(tui.Model)
+	if !ok {
+		return
+	}
+
 	// If a server was selected, connect after TUI exits.
-	if fm, ok := finalModel.(tui.Model); ok && fm.ConnectTo != nil {
+	if fm.ConnectTo != nil {
 		_ = hist.Record(fm.ConnectTo.Name)
 		if err := sshexec.Connect(*fm.ConnectTo); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// If a tunnel was selected, run it after TUI exits.
+	if fm.RunTunnel != nil {
+		if err := sshexec.RunTunnel(*fm.RunTunnel); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

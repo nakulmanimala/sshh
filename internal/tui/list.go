@@ -39,9 +39,9 @@ func buildListItems(servers []model.Server, originalIndices []int) []list.Item {
 	return items
 }
 
-// listKeyMap returns the additional keybindings help for the list.
+// listHelp returns the help bar text for the server list view.
 func listHelp() string {
-	return helpStyle.Render("/: search | a: add | e: edit | d: delete | i: import | enter: connect | q: quit")
+	return helpStyle.Render("Tab: tunnel mode | /: search | a: add | e: edit | d: delete | i: import | enter: connect | q: quit")
 }
 
 // selectedServer returns the currently selected server item, or nil if none.
@@ -80,6 +80,7 @@ const (
 	listActionEdit
 	listActionDelete
 	listActionImport
+	listActionToggleMode
 	listActionQuit
 )
 
@@ -107,6 +108,8 @@ func updateList(l *list.Model, msg tea.Msg) (listAction, tea.Cmd) {
 			}
 		case "i":
 			return listActionImport, nil
+		case "tab":
+			return listActionToggleMode, nil
 		case "q", "ctrl+c":
 			return listActionQuit, nil
 		}

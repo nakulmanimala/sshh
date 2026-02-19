@@ -58,4 +58,16 @@ var (
 	// Blurred input.
 	blurredInputStyle = lipgloss.NewStyle().
 				Foreground(colorSecondary)
+
+	// Tunnel mode title (accent color to visually distinguish from SSH mode).
+	tunnelTitleStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(colorAccent).
+				PaddingLeft(1)
+
+	// Tunnel form label (wider to fit "Remote Host:").
+	tunnelLabelStyle = lipgloss.NewStyle().
+				Foreground(colorAccent).
+				Bold(true).
+				Width(13)
 )
