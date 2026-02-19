@@ -9,10 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds the list of saved servers and tunnels.
+// Config holds the list of saved servers.
 type Config struct {
 	Servers []model.Server `yaml:"servers"`
-	Tunnels []model.Tunnel `yaml:"tunnels"`
 }
 
 // Dir returns the config directory path (~/.sshh/).
@@ -111,36 +110,3 @@ func (c *Config) FindByName(name string) (int, *model.Server) {
 	return -1, nil
 }
 
-// AddTunnel appends a tunnel and saves.
-func (c *Config) AddTunnel(t model.Tunnel) error {
-	c.Tunnels = append(c.Tunnels, t)
-	return c.Save()
-}
-
-// UpdateTunnel replaces the tunnel at index i and saves.
-func (c *Config) UpdateTunnel(i int, t model.Tunnel) error {
-	if i < 0 || i >= len(c.Tunnels) {
-		return nil
-	}
-	c.Tunnels[i] = t
-	return c.Save()
-}
-
-// DeleteTunnel removes the tunnel at index i and saves.
-func (c *Config) DeleteTunnel(i int) error {
-	if i < 0 || i >= len(c.Tunnels) {
-		return nil
-	}
-	c.Tunnels = append(c.Tunnels[:i], c.Tunnels[i+1:]...)
-	return c.Save()
-}
-
-// FindTunnelByName returns the index and tunnel with the given name, or -1 if not found.
-func (c *Config) FindTunnelByName(name string) (int, *model.Tunnel) {
-	for i := range c.Tunnels {
-		if c.Tunnels[i].Name == name {
-			return i, &c.Tunnels[i]
-		}
-	}
-	return -1, nil
-}

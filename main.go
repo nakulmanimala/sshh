@@ -36,6 +36,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	tunnelCfg, err := config.LoadTunnels()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading tunnels: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Direct connect mode: sshh <name>
 	if len(os.Args) > 1 {
 		name := os.Args[1]
@@ -53,7 +59,7 @@ func main() {
 	}
 
 	// TUI mode.
-	m := tui.NewModel(cfg, hist)
+	m := tui.NewModel(cfg, tunnelCfg, hist)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()

@@ -26,8 +26,9 @@ const (
 
 // Model is the root Bubble Tea model.
 type Model struct {
-	cfg  *config.Config
-	hist *history.History
+	cfg       *config.Config
+	tunnelCfg *config.TunnelConfig
+	hist      *history.History
 
 	// SSH mode state.
 	serverList  list.Model
@@ -38,10 +39,10 @@ type Model struct {
 	deleteIndex int
 
 	// Tunnel mode state.
-	tunnelList       list.Model
-	tunnelListInited bool
-	tunnelForm       tunnelFormModel
-	tunnelConfirm    confirmModel
+	tunnelList        list.Model
+	tunnelListInited  bool
+	tunnelForm        tunnelFormModel
+	tunnelConfirm     confirmModel
 	tunnelDeleteIndex int
 
 	activeView view
@@ -56,9 +57,10 @@ type Model struct {
 }
 
 // NewModel creates the initial app model.
-func NewModel(cfg *config.Config, hist *history.History) Model {
+func NewModel(cfg *config.Config, tunnelCfg *config.TunnelConfig, hist *history.History) Model {
 	return Model{
 		cfg:        cfg,
+		tunnelCfg:  tunnelCfg,
 		hist:       hist,
 		activeView: viewList,
 	}
@@ -269,7 +271,7 @@ func (m Model) updateImportView(msg tea.Msg) (tea.Model, tea.Cmd) {
 // --- Tunnel list ---
 
 func (m *Model) refreshTunnelList() {
-	items := buildTunnelListItems(m.cfg.Tunnels)
+	items := buildTunnelListItems(m.tunnelCfg.Tunnels)
 	w, h := m.dims()
 	if !m.tunnelListInited {
 		m.tunnelList = newTunnelList(items, w, h)
@@ -335,11 +337,11 @@ func (m Model) updateTunnelFormView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t := m.tunnelForm.ToTunnel()
 			if t.Name != "" && t.SSHHost != "" {
 				if m.tunnelForm.editing {
-					if err := m.cfg.UpdateTunnel(m.tunnelForm.index, t); err != nil {
+					if err := m.tunnelCfg.UpdateTunnel(m.tunnelForm.index, t); err != nil {
 						m.err = err
 					}
 				} else {
-					if err := m.cfg.AddTunnel(t); err != nil {
+					if err := m.tunnelCfg.AddTunnel(t); err != nil {
 						m.err = err
 					}
 				}
@@ -358,7 +360,7 @@ func (m Model) updateTunnelConfirmView(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.tunnelConfirm.done {
 		if m.tunnelConfirm.confirmed {
-			if err := m.cfg.DeleteTunnel(m.tunnelDeleteIndex); err != nil {
+			if err := m.tunnelCfg.DeleteTunnel(m.tunnelDeleteIndex); err != nil {
 				m.err = err
 			}
 		}
