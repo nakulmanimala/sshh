@@ -62,10 +62,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	fm, ok := finalModel.(tui.Model)
+	if !ok {
+		return
+	}
+
 	// If a server was selected, connect after TUI exits.
-	if fm, ok := finalModel.(tui.Model); ok && fm.ConnectTo != nil {
+	if fm.ConnectTo != nil {
 		_ = hist.Record(fm.ConnectTo.Name)
 		if err := sshexec.Connect(*fm.ConnectTo); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// If a tunnel was selected, run it after TUI exits.
+	if fm.RunTunnel != nil {
+		if err := sshexec.RunTunnel(*fm.RunTunnel); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
