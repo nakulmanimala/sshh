@@ -25,27 +25,28 @@ const (
 )
 
 type serverTableModel struct {
-	tbl            table.Model
-	search         textinput.Model
-	allItems       []serverItem
-	filtered       []serverItem
-	maxHeight      int // max visible rows based on terminal height
-	width          int
-	effectiveWidth int // actual rendered width based on content
+	tbl          table.Model
+	search       textinput.Model
+	allItems     []serverItem
+	filtered     []serverItem
+	maxHeight    int // max visible rows based on terminal height
+	width        int
+	tableRowWidth int // exact rendered width of one table row (no box border)
 }
 
 func newServerTableModel(items []serverItem, width, height int) serverTableModel {
-	cols := serverTableCols(width-2, items) // -2 for box border left+right
+	cols := serverTableCols(width, items)
 	rows := serverItemsToRows(items)
 	maxH := tableDataHeight(height)
 	tableH := max(1, min(len(items)+2, maxH))
-	ew := tableEffectiveWidth(cols)
+	trw := tableRowWidth(cols)
 
 	t := table.New(
 		table.WithColumns(cols),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(tableH),
+		table.WithWidth(trw),
 	)
 	s := table.DefaultStyles()
 	s.Header = tableHeaderStyle
@@ -55,17 +56,17 @@ func newServerTableModel(items []serverItem, width, height int) serverTableModel
 	ti := textinput.New()
 	ti.Placeholder = "type to filter..."
 	ti.CharLimit = 64
-	ti.Width = searchInputWidth(ew)
+	ti.Width = searchInputWidth(trw)
 	ti.Focus() // start in search mode by default
 
 	return serverTableModel{
-		tbl:            t,
-		search:         ti,
-		allItems:       items,
-		filtered:       items,
-		maxHeight:      maxH,
-		width:          width,
-		effectiveWidth: ew,
+		tbl:           t,
+		search:        ti,
+		allItems:      items,
+		filtered:      items,
+		maxHeight:     maxH,
+		width:         width,
+		tableRowWidth: trw,
 	}
 }
 
@@ -83,15 +84,27 @@ func tableDataHeight(totalHeight int) int {
 	return h
 }
 
-func searchInputWidth(totalWidth int) int {
-	w := totalWidth - 12
+func searchInputWidth(rowWidth int) int {
+	// searchBoxFocusedStyle uses Width(rowWidth); padding(0,1) gives wrapAt = rowWidth-2,
+	// so the textinput should be rowWidth-2 wide (content area inside padding).
+	w := rowWidth - 2
 	if w < 20 {
 		w = 20
 	}
 	return w
 }
 
-func serverTableCols(width int, items []serverItem) []table.Column {
+// tableRowWidth returns the exact visual width of a rendered table row:
+// each cell is padded to its Width and surrounded by 1 space on each side.
+func tableRowWidth(cols []table.Column) int {
+	total := 0
+	for _, c := range cols {
+		total += c.Width
+	}
+	return total + 2*len(cols) // 1 space left + 1 space right per cell
+}
+
+func serverTableCols(termWidth int, items []serverItem) []table.Column {
 	// Start each column at its header length, then grow to fit content.
 	nameW := len("Name")
 	hostW := len("Host")
@@ -121,9 +134,10 @@ func serverTableCols(width int, items []serverItem) []table.Column {
 	userW++
 	portW++
 	tagsW++
-	const overhead = 14 // cell padding + separators for 5 columns
-	// Cap last column so the table never exceeds the terminal width.
-	maxTagsW := width - nameW - hostW - userW - portW - overhead
+
+	// Cap last column so the total row never exceeds the terminal width.
+	// Row width = sum(colWidth) + 2*numCols; box border adds 2 more.
+	maxTagsW := termWidth - 2 - nameW - hostW - userW - portW - 2*5
 	if maxTagsW < 8 {
 		maxTagsW = 8
 	}
@@ -137,17 +151,6 @@ func serverTableCols(width int, items []serverItem) []table.Column {
 		{Title: "Port", Width: portW},
 		{Title: "Tags", Width: tagsW},
 	}
-}
-
-// tableEffectiveWidth returns the total rendered width of the table box
-// (column content + cell overhead + 2 for the box border).
-func tableEffectiveWidth(cols []table.Column) int {
-	total := 0
-	for _, c := range cols {
-		total += c.Width
-	}
-	const overhead = 14 // cell padding + separators for 5 columns
-	return total + overhead + 2 // +2 for box border
 }
 
 func serverItemsToRows(items []serverItem) []table.Row {
@@ -173,10 +176,12 @@ func (m *serverTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
 	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
-	cols := serverTableCols(width-2, m.allItems) // -2 for box border
+	cols := serverTableCols(width, m.allItems)
 	m.tbl.SetColumns(cols)
-	m.effectiveWidth = tableEffectiveWidth(cols)
-	m.search.Width = searchInputWidth(m.effectiveWidth)
+	trw := tableRowWidth(cols)
+	m.tbl.SetWidth(trw)
+	m.tableRowWidth = trw
+	m.search.Width = searchInputWidth(trw)
 }
 
 func (m *serverTableModel) applyFilter(query string) {
@@ -261,15 +266,17 @@ func (m serverTableModel) View() string {
 	// No PaddingLeft here — title must start at column 0 to align with the boxes below.
 	title := lipgloss.NewStyle().Bold(true).Foreground(colorPrimary).Render("SSHH") + "  " + count
 
-	ew := m.effectiveWidth
-	// searchBox: content width = ew-4 (2 border + 2 padding), total = ew
-	searchBox := searchBoxFocusedStyle.Width(ew - 4).Render(m.search.View())
-	// tableBox: content width = ew-2 (2 border), total = ew
+	trw := m.tableRowWidth
+	// tableBox: border adds 2, so content width = trw, outer width = trw+2
 	tableBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colorPrimary).
-		Width(ew - 2).
+		Width(trw).
 		Render(m.tbl.View())
+
+	// searchBox: lipgloss Width includes padding; border is added on top.
+	// Width(trw) → padded area = trw, border adds 2 → outer = trw+2 (same as tableBox).
+	searchBox := searchBoxFocusedStyle.Width(trw).Render(m.search.View())
 
 	help := helpStyle.Render("tab: tunnels | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | ctrl+o: import | enter: connect")
 
