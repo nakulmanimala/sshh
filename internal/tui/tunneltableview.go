@@ -39,7 +39,7 @@ func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel
 	cols := tunnelTableCols(width - 2) // -2 for box border left+right
 	rows := tunnelItemsToRows(items)
 	maxH := tableDataHeight(height)
-	tableH := max(1, min(len(items), maxH))
+	tableH := max(1, min(len(items)+2, maxH))
 
 	t := table.New(
 		table.WithColumns(cols),
@@ -141,7 +141,7 @@ func (m *tunnelTableModel) setItems(items []tunnelItem) {
 func (m *tunnelTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
-	m.tbl.SetHeight(max(1, min(len(m.filtered), m.maxHeight)))
+	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
 	m.tbl.SetColumns(tunnelTableCols(width - 2)) // -2 for box border
 	m.search.Width = searchInputWidth(width)
 }
@@ -161,7 +161,7 @@ func (m *tunnelTableModel) applyFilter(query string) {
 		m.filtered = out
 	}
 	m.tbl.SetRows(tunnelItemsToRows(m.filtered))
-	m.tbl.SetHeight(max(1, min(len(m.filtered), m.maxHeight)))
+	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
 }
 
 func (m tunnelTableModel) selectedItem() *tunnelItem {
@@ -209,15 +209,14 @@ func (m tunnelTableModel) Update(msg tea.Msg) (tunnelTableModel, tunnelTableActi
 
 		// Nav-only mode (search blurred).
 		switch msg.String() {
-		case "/", "esc":
-			// esc in nav mode = clear filter and re-enter search.
-			if msg.String() == "esc" {
-				m.search.SetValue("")
-				m.applyFilter("")
-			}
+		case "/":
 			m.searching = true
 			cmd = m.search.Focus()
 			return m, tunnelTableActionNone, cmd
+		case "esc":
+			m.search.SetValue("")
+			m.applyFilter("")
+			return m, tunnelTableActionNone, nil
 		case "enter":
 			if m.selectedItem() != nil {
 				return m, tunnelTableActionRun, nil
@@ -247,7 +246,8 @@ func (m tunnelTableModel) Update(msg tea.Msg) (tunnelTableModel, tunnelTableActi
 
 func (m tunnelTableModel) View() string {
 	count := helpStyle.Render(fmt.Sprintf("(%d/%d)", len(m.filtered), len(m.allItems)))
-	title := tunnelTitleStyle.Render("SSHH — Tunnels") + "  " + count
+	// No PaddingLeft — align with boxes below.
+	title := lipgloss.NewStyle().Bold(true).Foreground(colorAccent).Render("SSHH — Tunnels") + "  " + count
 
 	searchStyle := searchBoxBlurredStyle
 	if m.searching {
@@ -258,6 +258,7 @@ func (m tunnelTableModel) View() string {
 	tableBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colorAccent).
+		Width(m.width - 2).
 		Render(m.tbl.View())
 
 	help := helpStyle.Render("Tab: ssh | v: list view | ↑↓: navigate | esc: clear | a: add | e: edit | d: del | enter: run | q: quit")

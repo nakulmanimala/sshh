@@ -38,7 +38,7 @@ func newServerTableModel(items []serverItem, width, height int) serverTableModel
 	cols := serverTableCols(width - 2) // -2 for box border left+right
 	rows := serverItemsToRows(items)
 	maxH := tableDataHeight(height)
-	tableH := max(1, min(len(items), maxH))
+	tableH := max(1, min(len(items)+2, maxH))
 
 	t := table.New(
 		table.WithColumns(cols),
@@ -133,7 +133,7 @@ func (m *serverTableModel) setItems(items []serverItem) {
 func (m *serverTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
-	m.tbl.SetHeight(max(1, min(len(m.filtered), m.maxHeight)))
+	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
 	m.tbl.SetColumns(serverTableCols(width - 2)) // -2 for box border
 	m.search.Width = searchInputWidth(width)
 }
@@ -156,7 +156,7 @@ func (m *serverTableModel) applyFilter(query string) {
 		m.filtered = out
 	}
 	m.tbl.SetRows(serverItemsToRows(m.filtered))
-	m.tbl.SetHeight(max(1, min(len(m.filtered), m.maxHeight)))
+	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
 }
 
 func (m serverTableModel) selectedItem() *serverItem {
@@ -204,15 +204,14 @@ func (m serverTableModel) Update(msg tea.Msg) (serverTableModel, tableViewAction
 
 		// Nav-only mode (search blurred).
 		switch msg.String() {
-		case "/", "esc":
-			// esc in nav mode = clear filter and re-enter search.
-			if msg.String() == "esc" {
-				m.search.SetValue("")
-				m.applyFilter("")
-			}
+		case "/":
 			m.searching = true
 			cmd = m.search.Focus()
 			return m, tableViewActionNone, cmd
+		case "esc":
+			m.search.SetValue("")
+			m.applyFilter("")
+			return m, tableViewActionNone, nil
 		case "enter":
 			if m.selectedItem() != nil {
 				return m, tableViewActionConnect, nil
@@ -244,17 +243,21 @@ func (m serverTableModel) Update(msg tea.Msg) (serverTableModel, tableViewAction
 
 func (m serverTableModel) View() string {
 	count := helpStyle.Render(fmt.Sprintf("(%d/%d)", len(m.filtered), len(m.allItems)))
-	title := titleStyle.Render("SSHH") + "  " + count
+	// No PaddingLeft here — title must start at column 0 to align with the boxes below.
+	title := lipgloss.NewStyle().Bold(true).Foreground(colorPrimary).Render("SSHH") + "  " + count
 
 	searchStyle := searchBoxBlurredStyle
 	if m.searching {
 		searchStyle = searchBoxFocusedStyle
 	}
+	// searchBox total width = (m.width-4) content + 2 padding + 2 border = m.width
 	searchBox := searchStyle.Width(m.width - 4).Render(m.search.View())
 
+	// tableBox total width = (m.width-2) content + 2 border = m.width  (matches searchBox)
 	tableBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colorPrimary).
+		Width(m.width - 2).
 		Render(m.tbl.View())
 
 	help := helpStyle.Render("Tab: tunnels | v: list view | ↑↓: navigate | esc: clear | a: add | e: edit | d: del | i: import | enter: connect | q: quit")
