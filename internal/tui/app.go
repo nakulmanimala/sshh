@@ -95,6 +95,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.serverTable.Init()
 		case viewTableTunnelList:
 			return m, m.tunnelTable.Init()
+		case viewConfirm:
+			m.confirm.resize(m.width, m.height)
+		case viewTunnelConfirm:
+			m.tunnelConfirm.resize(m.width, m.height)
 		}
 		return m, nil
 	}
@@ -224,6 +228,7 @@ func (m Model) updateListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.returnToView = viewList
 			m.deleteIndex = s.index
 			m.confirm = newConfirmModel(fmt.Sprintf("Delete server %q?", s.server.Name))
+			m.confirm.resize(m.width, m.height)
 			m.activeView = viewConfirm
 		}
 	case listActionImport:
@@ -388,6 +393,7 @@ func (m Model) updateTunnelListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.returnToView = viewTunnelList
 			m.tunnelDeleteIndex = t.index
 			m.tunnelConfirm = newConfirmModel(fmt.Sprintf("Delete tunnel %q?", t.tunnel.Name))
+			m.tunnelConfirm.resize(m.width, m.height)
 			m.activeView = viewTunnelConfirm
 		}
 	case tunnelListActionToggleMode:
@@ -487,6 +493,7 @@ func (m Model) updateServerTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.returnToView = viewTableList
 			m.deleteIndex = s.index
 			m.confirm = newConfirmModel(fmt.Sprintf("Delete server %q?", s.server.Name))
+			m.confirm.resize(m.width, m.height)
 			m.activeView = viewConfirm
 		}
 	case tableViewActionImport:
@@ -552,6 +559,7 @@ func (m Model) updateTunnelTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.returnToView = viewTableTunnelList
 			m.tunnelDeleteIndex = t.index
 			m.tunnelConfirm = newConfirmModel(fmt.Sprintf("Delete tunnel %q?", t.tunnel.Name))
+			m.tunnelConfirm.resize(m.width, m.height)
 			m.activeView = viewTunnelConfirm
 		}
 	case tunnelTableActionToggleList:
