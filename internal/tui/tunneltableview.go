@@ -26,12 +26,13 @@ const (
 )
 
 type tunnelTableModel struct {
-	tbl       table.Model
-	search    textinput.Model
-	allItems  []tunnelItem
-	filtered  []tunnelItem
-	maxHeight int // max visible rows based on terminal height
-	width     int
+	tbl            table.Model
+	search         textinput.Model
+	allItems       []tunnelItem
+	filtered       []tunnelItem
+	maxHeight      int // max visible rows based on terminal height
+	width          int
+	effectiveWidth int // actual rendered width based on content
 }
 
 func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel {
@@ -39,6 +40,7 @@ func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel
 	rows := tunnelItemsToRows(items)
 	maxH := tableDataHeight(height)
 	tableH := max(1, min(len(items)+2, maxH))
+	ew := tableEffectiveWidth(cols)
 
 	t := table.New(
 		table.WithColumns(cols),
@@ -54,16 +56,17 @@ func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel
 	ti := textinput.New()
 	ti.Placeholder = "type to filter..."
 	ti.CharLimit = 64
-	ti.Width = searchInputWidth(width)
+	ti.Width = searchInputWidth(ew)
 	ti.Focus() // start in search mode by default
 
 	return tunnelTableModel{
-		tbl:       t,
-		search:    ti,
-		allItems:  items,
-		filtered:  items,
-		maxHeight: maxH,
-		width:     width,
+		tbl:            t,
+		search:         ti,
+		allItems:       items,
+		filtered:       items,
+		maxHeight:      maxH,
+		width:          width,
+		effectiveWidth: ew,
 	}
 }
 
@@ -78,6 +81,7 @@ func tunnelTableCols(width int, items []tunnelItem) []table.Column {
 	typeW := len("Type")
 	viaW := len("Via")
 	localW := len("Local")
+	remoteW := len("Remote")
 	for _, item := range items {
 		if n := len(item.tunnel.Name); n > nameW {
 			nameW = n
@@ -91,16 +95,24 @@ func tunnelTableCols(width int, items []tunnelItem) []table.Column {
 		if n := len(fmt.Sprintf(":%d", item.tunnel.LocalPort)); n > localW {
 			localW = n
 		}
+		if n := len(tunnelRemoteStr(item)); n > remoteW {
+			remoteW = n
+		}
 	}
-	// +1 breathing room on each fixed column.
+	// +1 breathing room on each column.
 	nameW++
 	typeW++
 	viaW++
 	localW++
+	remoteW++
 	const overhead = 14 // cell padding + separators for 5 columns
-	remoteW := width - nameW - typeW - viaW - localW - overhead
-	if remoteW < 10 {
-		remoteW = 10
+	// Cap last column so the table never exceeds the terminal width.
+	maxRemoteW := width - nameW - typeW - viaW - localW - overhead
+	if maxRemoteW < 10 {
+		maxRemoteW = 10
+	}
+	if remoteW > maxRemoteW {
+		remoteW = maxRemoteW
 	}
 	return []table.Column{
 		{Title: "Name", Width: nameW},
@@ -158,8 +170,10 @@ func (m *tunnelTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
 	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
-	m.tbl.SetColumns(tunnelTableCols(width-2, m.allItems)) // -2 for box border
-	m.search.Width = searchInputWidth(width)
+	cols := tunnelTableCols(width-2, m.allItems) // -2 for box border
+	m.tbl.SetColumns(cols)
+	m.effectiveWidth = tableEffectiveWidth(cols)
+	m.search.Width = searchInputWidth(m.effectiveWidth)
 }
 
 func (m *tunnelTableModel) applyFilter(query string) {
@@ -239,12 +253,14 @@ func (m tunnelTableModel) View() string {
 	// No PaddingLeft — align with boxes below.
 	title := lipgloss.NewStyle().Bold(true).Foreground(colorAccent).Render("SSHH — Tunnels") + "  " + count
 
-	searchBox := tunnelSearchBoxFocusedStyle.Width(m.width - 4).Render(m.search.View())
-
+	ew := m.effectiveWidth
+	// searchBox: content width = ew-4 (2 border + 2 padding), total = ew
+	searchBox := tunnelSearchBoxFocusedStyle.Width(ew - 4).Render(m.search.View())
+	// tableBox: content width = ew-2 (2 border), total = ew
 	tableBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colorAccent).
-		Width(m.width - 2).
+		Width(ew - 2).
 		Render(m.tbl.View())
 
 	help := helpStyle.Render("tab: ssh | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | enter: run")
