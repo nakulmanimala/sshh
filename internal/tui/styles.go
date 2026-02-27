@@ -70,4 +70,50 @@ var (
 				Foreground(colorAccent).
 				Bold(true).
 				Width(13)
+
+	// Search box (focused).
+	searchBoxFocusedStyle = lipgloss.NewStyle().
+				BorderStyle(lipgloss.RoundedBorder()).
+				BorderForeground(colorPrimary).
+				Padding(0, 1)
+
+	// Search box (blurred / nav-only mode).
+	searchBoxBlurredStyle = lipgloss.NewStyle().
+				BorderStyle(lipgloss.RoundedBorder()).
+				BorderForeground(colorMuted).
+				Padding(0, 1)
+
+	// Tunnel search box (focused).
+	tunnelSearchBoxFocusedStyle = lipgloss.NewStyle().
+					BorderStyle(lipgloss.RoundedBorder()).
+					BorderForeground(colorAccent).
+					Padding(0, 1)
+
+	// Table header style.
+	tableHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(colorPrimary).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(colorMuted).
+				BorderBottom(true)
+
+	// Table selected row style.
+	tableSelectedStyle = lipgloss.NewStyle().
+				Foreground(colorPrimary).
+				Bold(true).
+				Background(lipgloss.Color("236"))
+
+	// Tunnel table header style.
+	tunnelTableHeaderStyle = lipgloss.NewStyle().
+					Bold(true).
+					Foreground(colorAccent).
+					BorderStyle(lipgloss.NormalBorder()).
+					BorderForeground(colorMuted).
+					BorderBottom(true)
+
+	// Tunnel table selected row style.
+	tunnelTableSelectedStyle = lipgloss.NewStyle().
+					Foreground(colorAccent).
+					Bold(true).
+					Background(lipgloss.Color("236"))
 )

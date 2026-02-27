@@ -26,9 +26,9 @@ func (s serverItem) Description() string {
 	return desc
 }
 
-// buildListItems creates list items from servers, preserving original config indices.
-func buildListItems(servers []model.Server, originalIndices []int) []list.Item {
-	items := make([]list.Item, len(servers))
+// buildServerItems creates serverItem slice from servers, preserving original config indices.
+func buildServerItems(servers []model.Server, originalIndices []int) []serverItem {
+	items := make([]serverItem, len(servers))
 	for i, s := range servers {
 		idx := i
 		if originalIndices != nil && i < len(originalIndices) {
@@ -39,9 +39,19 @@ func buildListItems(servers []model.Server, originalIndices []int) []list.Item {
 	return items
 }
 
+// buildListItems creates list.Item slice for the bubbles list component.
+func buildListItems(servers []model.Server, originalIndices []int) []list.Item {
+	sItems := buildServerItems(servers, originalIndices)
+	items := make([]list.Item, len(sItems))
+	for i, si := range sItems {
+		items[i] = si
+	}
+	return items
+}
+
 // listHelp returns the help bar text for the server list view.
 func listHelp() string {
-	return helpStyle.Render("Tab: tunnel mode | /: search | a: add | e: edit | d: delete | i: import | enter: connect | q: quit")
+	return helpStyle.Render("Tab: tunnels | v: table | /: search | a: add | e: edit | d: del | i: import | enter: connect | q: quit")
 }
 
 // selectedServer returns the currently selected server item, or nil if none.
@@ -81,6 +91,7 @@ const (
 	listActionDelete
 	listActionImport
 	listActionToggleMode
+	listActionToggleTable
 	listActionQuit
 )
 
@@ -110,6 +121,8 @@ func updateList(l *list.Model, msg tea.Msg) (listAction, tea.Cmd) {
 			return listActionImport, nil
 		case "tab":
 			return listActionToggleMode, nil
+		case "v":
+			return listActionToggleTable, nil
 		case "q", "ctrl+c":
 			return listActionQuit, nil
 		}

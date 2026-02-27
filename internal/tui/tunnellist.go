@@ -37,18 +37,28 @@ func (t tunnelItem) Description() string {
 	}
 }
 
-// buildTunnelListItems creates list items from tunnels.
-func buildTunnelListItems(tunnels []model.Tunnel) []list.Item {
-	items := make([]list.Item, len(tunnels))
+// buildTunnelItems creates a tunnelItem slice from tunnels.
+func buildTunnelItems(tunnels []model.Tunnel) []tunnelItem {
+	items := make([]tunnelItem, len(tunnels))
 	for i, t := range tunnels {
 		items[i] = tunnelItem{tunnel: t, index: i}
 	}
 	return items
 }
 
+// buildTunnelListItems creates list.Item slice for the bubbles list component.
+func buildTunnelListItems(tunnels []model.Tunnel) []list.Item {
+	tItems := buildTunnelItems(tunnels)
+	items := make([]list.Item, len(tItems))
+	for i, ti := range tItems {
+		items[i] = ti
+	}
+	return items
+}
+
 // tunnelListHelp returns the help bar text for the tunnel list view.
 func tunnelListHelp() string {
-	return helpStyle.Render("Tab: ssh mode | /: search | a: add | e: edit | d: delete | enter: run tunnel | q: quit")
+	return helpStyle.Render("Tab: ssh | v: table | /: search | a: add | e: edit | d: del | enter: run | q: quit")
 }
 
 // selectedTunnel returns the currently selected tunnel item, or nil if none.
@@ -86,6 +96,7 @@ const (
 	tunnelListActionEdit
 	tunnelListActionDelete
 	tunnelListActionToggleMode
+	tunnelListActionToggleTable
 	tunnelListActionQuit
 )
 
@@ -112,6 +123,8 @@ func updateTunnelList(l *list.Model, msg tea.Msg) (tunnelListAction, tea.Cmd) {
 			}
 		case "tab":
 			return tunnelListActionToggleMode, nil
+		case "v":
+			return tunnelListActionToggleTable, nil
 		case "q", "ctrl+c":
 			return tunnelListActionQuit, nil
 		}
