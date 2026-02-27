@@ -51,7 +51,7 @@ func buildListItems(servers []model.Server, originalIndices []int) []list.Item {
 
 // listHelp returns the help bar text for the server list view.
 func listHelp() string {
-	return helpStyle.Render("Tab: tunnels | v: table | /: search | a: add | e: edit | d: del | i: import | enter: connect | q: quit")
+	return helpStyle.Render("tab: tunnels | ctrl+v: table | /: search | ctrl+a: add | ctrl+e: edit | ctrl+d: del | ctrl+o: import | enter: connect")
 }
 
 // selectedServer returns the currently selected server item, or nil if none.
@@ -107,23 +107,23 @@ func updateList(l *list.Model, msg tea.Msg) (listAction, tea.Cmd) {
 			if selectedServer(*l) != nil {
 				return listActionConnect, nil
 			}
-		case "a":
+		case "ctrl+a":
 			return listActionAdd, nil
-		case "e":
+		case "ctrl+e":
 			if selectedServer(*l) != nil {
 				return listActionEdit, nil
 			}
-		case "d":
+		case "ctrl+d":
 			if selectedServer(*l) != nil {
 				return listActionDelete, nil
 			}
-		case "i":
+		case "ctrl+o":
 			return listActionImport, nil
 		case "tab":
 			return listActionToggleMode, nil
-		case "v":
+		case "ctrl+v":
 			return listActionToggleTable, nil
-		case "q", "ctrl+c":
+		case "ctrl+c":
 			return listActionQuit, nil
 		}
 	}

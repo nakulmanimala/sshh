@@ -34,7 +34,7 @@ type serverTableModel struct {
 }
 
 func newServerTableModel(items []serverItem, width, height int) serverTableModel {
-	cols := serverTableCols(width - 2) // -2 for box border left+right
+	cols := serverTableCols(width-2, items) // -2 for box border left+right
 	rows := serverItemsToRows(items)
 	maxH := tableDataHeight(height)
 	tableH := max(1, min(len(items)+2, maxH))
@@ -88,12 +88,33 @@ func searchInputWidth(totalWidth int) int {
 	return w
 }
 
-func serverTableCols(width int) []table.Column {
-	nameW := 20
-	hostW := 24
-	userW := 12
-	portW := 6
-	tagsW := width - nameW - hostW - userW - portW - 14 // 14 for column separators/padding
+func serverTableCols(width int, items []serverItem) []table.Column {
+	// Start each column at its header length, then grow to fit content.
+	nameW := len("Name")
+	hostW := len("Host")
+	userW := len("User")
+	portW := len("Port")
+	for _, item := range items {
+		if n := len(item.server.Name); n > nameW {
+			nameW = n
+		}
+		if n := len(item.server.Host); n > hostW {
+			hostW = n
+		}
+		if n := len(item.server.User); n > userW {
+			userW = n
+		}
+		if n := len(fmt.Sprintf("%d", item.server.Port)); n > portW {
+			portW = n
+		}
+	}
+	// +1 breathing room on each fixed column.
+	nameW++
+	hostW++
+	userW++
+	portW++
+	const overhead = 14 // cell padding + separators for 5 columns
+	tagsW := width - nameW - hostW - userW - portW - overhead
 	if tagsW < 8 {
 		tagsW = 8
 	}
@@ -129,7 +150,7 @@ func (m *serverTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
 	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
-	m.tbl.SetColumns(serverTableCols(width - 2)) // -2 for box border
+	m.tbl.SetColumns(serverTableCols(width-2, m.allItems)) // -2 for box border
 	m.search.Width = searchInputWidth(width)
 }
 

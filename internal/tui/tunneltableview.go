@@ -35,7 +35,7 @@ type tunnelTableModel struct {
 }
 
 func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel {
-	cols := tunnelTableCols(width - 2) // -2 for box border left+right
+	cols := tunnelTableCols(width-2, items) // -2 for box border left+right
 	rows := tunnelItemsToRows(items)
 	maxH := tableDataHeight(height)
 	tableH := max(1, min(len(items)+2, maxH))
@@ -72,12 +72,33 @@ func (m tunnelTableModel) Init() tea.Cmd {
 	return m.search.Focus()
 }
 
-func tunnelTableCols(width int) []table.Column {
-	nameW := 18
-	typeW := 9
-	viaW := 24
-	localW := 10
-	remoteW := width - nameW - typeW - viaW - localW - 14
+func tunnelTableCols(width int, items []tunnelItem) []table.Column {
+	// Start each column at its header length, then grow to fit content.
+	nameW := len("Name")
+	typeW := len("Type")
+	viaW := len("Via")
+	localW := len("Local")
+	for _, item := range items {
+		if n := len(item.tunnel.Name); n > nameW {
+			nameW = n
+		}
+		if n := len(string(item.tunnel.Type)); n > typeW {
+			typeW = n
+		}
+		if n := len(tunnelViaStr(item)); n > viaW {
+			viaW = n
+		}
+		if n := len(fmt.Sprintf(":%d", item.tunnel.LocalPort)); n > localW {
+			localW = n
+		}
+	}
+	// +1 breathing room on each fixed column.
+	nameW++
+	typeW++
+	viaW++
+	localW++
+	const overhead = 14 // cell padding + separators for 5 columns
+	remoteW := width - nameW - typeW - viaW - localW - overhead
 	if remoteW < 10 {
 		remoteW = 10
 	}
@@ -137,7 +158,7 @@ func (m *tunnelTableModel) resize(width, height int) {
 	m.width = width
 	m.maxHeight = tableDataHeight(height)
 	m.tbl.SetHeight(max(1, min(len(m.filtered)+2, m.maxHeight)))
-	m.tbl.SetColumns(tunnelTableCols(width - 2)) // -2 for box border
+	m.tbl.SetColumns(tunnelTableCols(width-2, m.allItems)) // -2 for box border
 	m.search.Width = searchInputWidth(width)
 }
 

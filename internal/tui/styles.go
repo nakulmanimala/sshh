@@ -93,6 +93,7 @@ var (
 	tableHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(colorPrimary).
+				Padding(0, 1).
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(colorMuted).
 				BorderBottom(true)
@@ -107,6 +108,7 @@ var (
 	tunnelTableHeaderStyle = lipgloss.NewStyle().
 					Bold(true).
 					Foreground(colorAccent).
+					Padding(0, 1).
 					BorderStyle(lipgloss.NormalBorder()).
 					BorderForeground(colorMuted).
 					BorderBottom(true)

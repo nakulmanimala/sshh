@@ -58,7 +58,7 @@ func buildTunnelListItems(tunnels []model.Tunnel) []list.Item {
 
 // tunnelListHelp returns the help bar text for the tunnel list view.
 func tunnelListHelp() string {
-	return helpStyle.Render("Tab: ssh | v: table | /: search | a: add | e: edit | d: del | enter: run | q: quit")
+	return helpStyle.Render("tab: ssh | ctrl+v: table | /: search | ctrl+a: add | ctrl+e: edit | ctrl+d: del | enter: run")
 }
 
 // selectedTunnel returns the currently selected tunnel item, or nil if none.
@@ -111,21 +111,21 @@ func updateTunnelList(l *list.Model, msg tea.Msg) (tunnelListAction, tea.Cmd) {
 			if selectedTunnel(*l) != nil {
 				return tunnelListActionRun, nil
 			}
-		case "a":
+		case "ctrl+a":
 			return tunnelListActionAdd, nil
-		case "e":
+		case "ctrl+e":
 			if selectedTunnel(*l) != nil {
 				return tunnelListActionEdit, nil
 			}
-		case "d":
+		case "ctrl+d":
 			if selectedTunnel(*l) != nil {
 				return tunnelListActionDelete, nil
 			}
 		case "tab":
 			return tunnelListActionToggleMode, nil
-		case "v":
+		case "ctrl+v":
 			return tunnelListActionToggleTable, nil
-		case "q", "ctrl+c":
+		case "ctrl+c":
 			return tunnelListActionQuit, nil
 		}
 	}
