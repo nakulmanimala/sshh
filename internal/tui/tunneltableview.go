@@ -30,7 +30,6 @@ type tunnelTableModel struct {
 	search    textinput.Model
 	allItems  []tunnelItem
 	filtered  []tunnelItem
-	searching bool
 	maxHeight int // max visible rows based on terminal height
 	width     int
 }
@@ -63,7 +62,6 @@ func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel
 		search:    ti,
 		allItems:  items,
 		filtered:  items,
-		searching: true,
 		maxHeight: maxH,
 		width:     width,
 	}
@@ -71,10 +69,7 @@ func newTunnelTableModel(items []tunnelItem, width, height int) tunnelTableModel
 
 // Init returns the cursor-blink command for the search box.
 func (m tunnelTableModel) Init() tea.Cmd {
-	if m.searching {
-		return m.search.Focus()
-	}
-	return nil
+	return m.search.Focus()
 }
 
 func tunnelTableCols(width int) []table.Column {
@@ -178,65 +173,39 @@ func (m tunnelTableModel) Update(msg tea.Msg) (tunnelTableModel, tunnelTableActi
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.searching {
-			switch msg.String() {
-			case "up", "down", "pgup", "pgdown":
-				// Navigate rows while keeping search active.
-				m.tbl, cmd = m.tbl.Update(msg)
-				return m, tunnelTableActionNone, cmd
-			case "enter":
-				if m.selectedItem() != nil {
-					return m, tunnelTableActionRun, nil
-				}
-				return m, tunnelTableActionNone, nil
-			case "esc":
-				// Blur the search box but keep the filter active so the
-				// user can act on the filtered selection (e/d/enter).
-				m.searching = false
-				m.search.Blur()
-				return m, tunnelTableActionNone, nil
-			case "tab":
-				return m, tunnelTableActionToggleSSH, nil
-			case "ctrl+c":
-				return m, tunnelTableActionQuit, nil
-			default:
-				// Route all other keys to search.
-				m.search, cmd = m.search.Update(msg)
-				m.applyFilter(m.search.Value())
-				return m, tunnelTableActionNone, cmd
-			}
-		}
-
-		// Nav-only mode (search blurred).
 		switch msg.String() {
-		case "/":
-			m.searching = true
-			cmd = m.search.Focus()
+		case "up", "down", "pgup", "pgdown":
+			m.tbl, cmd = m.tbl.Update(msg)
 			return m, tunnelTableActionNone, cmd
-		case "esc":
-			m.search.SetValue("")
-			m.applyFilter("")
-			return m, tunnelTableActionNone, nil
 		case "enter":
 			if m.selectedItem() != nil {
 				return m, tunnelTableActionRun, nil
 			}
-		case "a":
+			return m, tunnelTableActionNone, nil
+		case "esc":
+			m.search.SetValue("")
+			m.applyFilter("")
+			return m, tunnelTableActionNone, nil
+		case "ctrl+a":
 			return m, tunnelTableActionAdd, nil
-		case "e":
+		case "ctrl+e":
 			if m.selectedItem() != nil {
 				return m, tunnelTableActionEdit, nil
 			}
-		case "d":
+		case "ctrl+d":
 			if m.selectedItem() != nil {
 				return m, tunnelTableActionDelete, nil
 			}
-		case "v":
+		case "ctrl+v":
 			return m, tunnelTableActionToggleList, nil
 		case "tab":
 			return m, tunnelTableActionToggleSSH, nil
-		case "q", "ctrl+c":
+		case "ctrl+c":
 			return m, tunnelTableActionQuit, nil
+		default:
+			m.search, cmd = m.search.Update(msg)
+			m.applyFilter(m.search.Value())
+			return m, tunnelTableActionNone, cmd
 		}
 	}
 
@@ -249,11 +218,7 @@ func (m tunnelTableModel) View() string {
 	// No PaddingLeft — align with boxes below.
 	title := lipgloss.NewStyle().Bold(true).Foreground(colorAccent).Render("SSHH — Tunnels") + "  " + count
 
-	searchStyle := searchBoxBlurredStyle
-	if m.searching {
-		searchStyle = tunnelSearchBoxFocusedStyle
-	}
-	searchBox := searchStyle.Width(m.width - 4).Render(m.search.View())
+	searchBox := tunnelSearchBoxFocusedStyle.Width(m.width - 4).Render(m.search.View())
 
 	tableBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
@@ -261,7 +226,7 @@ func (m tunnelTableModel) View() string {
 		Width(m.width - 2).
 		Render(m.tbl.View())
 
-	help := helpStyle.Render("Tab: ssh | v: list view | ↑↓: navigate | esc: clear | a: add | e: edit | d: del | enter: run | q: quit")
+	help := helpStyle.Render("tab: ssh | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | enter: run")
 
 	return title + "\n" + searchBox + "\n" + tableBox + "\n" + help
 }

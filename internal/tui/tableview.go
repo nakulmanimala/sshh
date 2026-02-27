@@ -29,7 +29,6 @@ type serverTableModel struct {
 	search    textinput.Model
 	allItems  []serverItem
 	filtered  []serverItem
-	searching bool
 	maxHeight int // max visible rows based on terminal height
 	width     int
 }
@@ -62,7 +61,6 @@ func newServerTableModel(items []serverItem, width, height int) serverTableModel
 		search:    ti,
 		allItems:  items,
 		filtered:  items,
-		searching: true,
 		maxHeight: maxH,
 		width:     width,
 	}
@@ -70,10 +68,7 @@ func newServerTableModel(items []serverItem, width, height int) serverTableModel
 
 // Init returns the cursor-blink command for the search box.
 func (m serverTableModel) Init() tea.Cmd {
-	if m.searching {
-		return m.search.Focus()
-	}
-	return nil
+	return m.search.Focus()
 }
 
 func tableDataHeight(totalHeight int) int {
@@ -173,67 +168,41 @@ func (m serverTableModel) Update(msg tea.Msg) (serverTableModel, tableViewAction
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.searching {
-			switch msg.String() {
-			case "up", "down", "pgup", "pgdown":
-				// Navigate rows while keeping search active.
-				m.tbl, cmd = m.tbl.Update(msg)
-				return m, tableViewActionNone, cmd
-			case "enter":
-				if m.selectedItem() != nil {
-					return m, tableViewActionConnect, nil
-				}
-				return m, tableViewActionNone, nil
-			case "esc":
-				// Blur the search box but keep the filter active so the
-				// user can act on the filtered selection (e/d/enter).
-				m.searching = false
-				m.search.Blur()
-				return m, tableViewActionNone, nil
-			case "tab":
-				return m, tableViewActionToggleTunnel, nil
-			case "ctrl+c":
-				return m, tableViewActionQuit, nil
-			default:
-				// Route all other keys (printable chars, backspace, etc.) to search.
-				m.search, cmd = m.search.Update(msg)
-				m.applyFilter(m.search.Value())
-				return m, tableViewActionNone, cmd
-			}
-		}
-
-		// Nav-only mode (search blurred).
 		switch msg.String() {
-		case "/":
-			m.searching = true
-			cmd = m.search.Focus()
+		case "up", "down", "pgup", "pgdown":
+			m.tbl, cmd = m.tbl.Update(msg)
 			return m, tableViewActionNone, cmd
-		case "esc":
-			m.search.SetValue("")
-			m.applyFilter("")
-			return m, tableViewActionNone, nil
 		case "enter":
 			if m.selectedItem() != nil {
 				return m, tableViewActionConnect, nil
 			}
-		case "a":
+			return m, tableViewActionNone, nil
+		case "esc":
+			m.search.SetValue("")
+			m.applyFilter("")
+			return m, tableViewActionNone, nil
+		case "ctrl+a":
 			return m, tableViewActionAdd, nil
-		case "e":
+		case "ctrl+e":
 			if m.selectedItem() != nil {
 				return m, tableViewActionEdit, nil
 			}
-		case "d":
+		case "ctrl+d":
 			if m.selectedItem() != nil {
 				return m, tableViewActionDelete, nil
 			}
-		case "i":
+		case "ctrl+o":
 			return m, tableViewActionImport, nil
-		case "v":
+		case "ctrl+v":
 			return m, tableViewActionToggleList, nil
 		case "tab":
 			return m, tableViewActionToggleTunnel, nil
-		case "q", "ctrl+c":
+		case "ctrl+c":
 			return m, tableViewActionQuit, nil
+		default:
+			m.search, cmd = m.search.Update(msg)
+			m.applyFilter(m.search.Value())
+			return m, tableViewActionNone, cmd
 		}
 	}
 
@@ -246,12 +215,8 @@ func (m serverTableModel) View() string {
 	// No PaddingLeft here — title must start at column 0 to align with the boxes below.
 	title := lipgloss.NewStyle().Bold(true).Foreground(colorPrimary).Render("SSHH") + "  " + count
 
-	searchStyle := searchBoxBlurredStyle
-	if m.searching {
-		searchStyle = searchBoxFocusedStyle
-	}
 	// searchBox total width = (m.width-4) content + 2 padding + 2 border = m.width
-	searchBox := searchStyle.Width(m.width - 4).Render(m.search.View())
+	searchBox := searchBoxFocusedStyle.Width(m.width - 4).Render(m.search.View())
 
 	// tableBox total width = (m.width-2) content + 2 border = m.width  (matches searchBox)
 	tableBox := lipgloss.NewStyle().
@@ -260,7 +225,7 @@ func (m serverTableModel) View() string {
 		Width(m.width - 2).
 		Render(m.tbl.View())
 
-	help := helpStyle.Render("Tab: tunnels | v: list view | ↑↓: navigate | esc: clear | a: add | e: edit | d: del | i: import | enter: connect | q: quit")
+	help := helpStyle.Render("tab: tunnels | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | ctrl+o: import | enter: connect")
 
 	return title + "\n" + searchBox + "\n" + tableBox + "\n" + help
 }
