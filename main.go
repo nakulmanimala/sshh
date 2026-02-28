@@ -50,6 +50,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	settings, err := config.LoadSettings()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading settings: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Direct connect mode: sshh <name>
 	if len(os.Args) > 1 {
 		name := os.Args[1]
@@ -67,7 +73,7 @@ func main() {
 	}
 
 	// TUI mode.
-	m := tui.NewModel(cfg, tunnelCfg, hist)
+	m := tui.NewModel(cfg, tunnelCfg, hist, settings)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()

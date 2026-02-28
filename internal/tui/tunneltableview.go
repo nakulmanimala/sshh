@@ -22,6 +22,7 @@ const (
 	tunnelTableActionDelete
 	tunnelTableActionToggleList // v: switch back to tunnel list view
 	tunnelTableActionToggleSSH  // tab: switch to SSH table view
+	tunnelTableActionPickColor  // ctrl+t: open color picker
 	tunnelTableActionQuit
 )
 
@@ -239,6 +240,8 @@ func (m tunnelTableModel) Update(msg tea.Msg) (tunnelTableModel, tunnelTableActi
 			return m, tunnelTableActionToggleList, nil
 		case "tab":
 			return m, tunnelTableActionToggleSSH, nil
+		case "ctrl+t":
+			return m, tunnelTableActionPickColor, nil
 		case "ctrl+c":
 			return m, tunnelTableActionQuit, nil
 		default:
@@ -277,6 +280,7 @@ func (m tunnelTableModel) View() string {
 		{"ctrl+a", "add"},
 		{"ctrl+e", "edit"},
 		{"ctrl+d", "delete"},
+		{"ctrl+t", "theme"},
 		{"enter", "run"},
 	}
 

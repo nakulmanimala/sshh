@@ -21,6 +21,7 @@ const (
 	tableViewActionImport
 	tableViewActionToggleList   // v: switch back to list view
 	tableViewActionToggleTunnel // tab: switch to tunnel table view
+	tableViewActionPickColor    // ctrl+t: open color picker
 	tableViewActionQuit
 )
 
@@ -266,6 +267,8 @@ func (m serverTableModel) Update(msg tea.Msg) (serverTableModel, tableViewAction
 			return m, tableViewActionToggleList, nil
 		case "tab":
 			return m, tableViewActionToggleTunnel, nil
+		case "ctrl+t":
+			return m, tableViewActionPickColor, nil
 		case "ctrl+c":
 			return m, tableViewActionQuit, nil
 		default:
@@ -305,6 +308,7 @@ func (m serverTableModel) View() string {
 		{"ctrl+e", "edit"},
 		{"ctrl+d", "delete"},
 		{"ctrl+o", "import"},
+		{"ctrl+t", "theme"},
 		{"enter", "connect"},
 	}
 
