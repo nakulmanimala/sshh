@@ -12,7 +12,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// version is set at build time via -ldflags "-X main.version=v1.2.3"
+var version = "dev"
+
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Println("sshh", version)
+		return
+	}
+
 	// Ensure config directory exists.
 	dir, err := config.Dir()
 	if err != nil {
