@@ -30,6 +30,18 @@ archives:
       {{- else if eq .Arch "arm64" }}arm64
       {{- else }}{{ .Arch }}{{ end }}
 
+brews:
+  - name: sshh
+    repository:
+      owner: nakulmanimala
+      name: homebrew-sshh
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://github.com/nakulmanimala/sshh"
+    description: "TUI for managing SSH servers and tunnels"
+    license: "MIT"
+    install: |
+      bin.install "sshh"
+
 changelog:
   sort: asc
   filters:
