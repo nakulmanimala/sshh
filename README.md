@@ -11,21 +11,21 @@ A fast, interactive terminal tool for managing and connecting to SSH servers and
 - Direct connect mode via CLI argument
 - Clean SSH handoff using `syscall.Exec`
 
-## Screenshots
+<br>
+<br>
 
-<img width="490" height="283" alt="SCR-20260212-jrsg" src="https://github.com/user-attachments/assets/aaf091b0-75ed-45e3-9a9e-51b47b7aca1c" />
+![ssh-demo](https://github.com/user-attachments/assets/c9546f32-6f45-4496-ad6d-b6c4310895ea)
+
 
 <br>
 <br>
 
-<img width="846" height="270" alt="SCR-20260212-jzqm" src="https://github.com/user-attachments/assets/0df1dc5a-1060-4c54-92dd-58166268b6b2" />
+![tunnel-demo](https://github.com/user-attachments/assets/f4364b1b-55cd-4331-aced-36adc9ade166)
+
 
 <br>
 <br>
 
-<img width="617" height="169" alt="SCR-20260212-jpwj" src="https://github.com/user-attachments/assets/76b9cc96-28aa-47a6-b4ee-17d3a4faa95e" />
-
-<br>
 
 ## Install
 
