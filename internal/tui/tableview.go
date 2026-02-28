@@ -76,12 +76,30 @@ func (m serverTableModel) Init() tea.Cmd {
 }
 
 func tableDataHeight(totalHeight int) int {
-	// totalHeight minus: title(1) + search box(3) + help(1) + table border/header(4)
-	h := totalHeight - 9
+	// totalHeight minus: title(1) + search box(3) + table border/header(4)
+	h := totalHeight - 8
 	if h < 2 {
 		h = 2
 	}
 	return h
+}
+
+// renderShortcutsPanel renders a vertical key → description shortcuts panel.
+func renderShortcutsPanel(shortcuts [][2]string, accentColor lipgloss.Color) string {
+	keyStyle := lipgloss.NewStyle().Foreground(accentColor)
+	descStyle := lipgloss.NewStyle().Foreground(colorMuted)
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(colorSecondary)
+	dividerStyle := lipgloss.NewStyle().Foreground(colorMuted)
+
+	lines := make([]string, 0, len(shortcuts)+2)
+	lines = append(lines, headerStyle.Render("Shortcuts"))
+	lines = append(lines, dividerStyle.Render("─────────"))
+	for _, s := range shortcuts {
+		key := keyStyle.Render(fmt.Sprintf("%-8s", s[0]))
+		desc := descStyle.Render(s[1])
+		lines = append(lines, key+" "+desc)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func searchInputWidth(rowWidth int) int {
@@ -105,12 +123,12 @@ func tableRowWidth(cols []table.Column) int {
 }
 
 func serverTableCols(termWidth int, items []serverItem) []table.Column {
-	// Start each column at its header length, then grow to fit content.
-	nameW := len("Name")
-	hostW := len("Host")
-	userW := len("User")
-	portW := len("Port")
-	tagsW := len("Tags")
+	// Default minimums give the table a reasonable size even with no data.
+	nameW := 15
+	hostW := 20
+	userW := 8
+	portW := 5
+	tagsW := 10
 	for _, item := range items {
 		if n := len(item.server.Name); n > nameW {
 			nameW = n
@@ -278,7 +296,33 @@ func (m serverTableModel) View() string {
 	// Width(trw) → padded area = trw, border adds 2 → outer = trw+2 (same as tableBox).
 	searchBox := searchBoxFocusedStyle.Width(trw).Render(m.search.View())
 
-	help := helpStyle.Render("tab: tunnels | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | ctrl+o: import | enter: connect")
+	shortcuts := [][2]string{
+		{"tab", "tunnels"},
+		{"ctrl+v", "list"},
+		{"↑↓", "navigate"},
+		{"esc", "clear"},
+		{"ctrl+a", "add"},
+		{"ctrl+e", "edit"},
+		{"ctrl+d", "delete"},
+		{"ctrl+o", "import"},
+		{"enter", "connect"},
+	}
 
-	return title + "\n" + searchBox + "\n" + tableBox + "\n" + help
+	leftBlock := searchBox + "\n" + tableBox
+	leftHeight := strings.Count(leftBlock, "\n") + 1
+	innerHeight := leftHeight - 2 // subtract border top and bottom
+	if innerHeight < 1 {
+		innerHeight = 1
+	}
+
+	shortcutsBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(colorMuted).
+		Height(innerHeight).
+		Padding(0, 1).
+		Render(renderShortcutsPanel(shortcuts, colorPrimary))
+
+	panel := lipgloss.NewStyle().PaddingLeft(2).Render(shortcutsBox)
+	mainArea := lipgloss.JoinHorizontal(lipgloss.Top, leftBlock, panel)
+	return title + "\n" + mainArea
 }

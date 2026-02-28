@@ -77,12 +77,12 @@ func (m tunnelTableModel) Init() tea.Cmd {
 }
 
 func tunnelTableCols(termWidth int, items []tunnelItem) []table.Column {
-	// Start each column at its header length, then grow to fit content.
-	nameW := len("Name")
-	typeW := len("Type")
-	viaW := len("Via")
-	localW := len("Local")
-	remoteW := len("Remote")
+	// Default minimums give the table a reasonable size even with no data.
+	nameW := 15
+	typeW := 7  // "dynamic"
+	viaW := 20
+	localW := 6 // ":65535"
+	remoteW := 20
 	for _, item := range items {
 		if n := len(item.tunnel.Name); n > nameW {
 			nameW = n
@@ -269,7 +269,32 @@ func (m tunnelTableModel) View() string {
 	// Width(trw) → padded area = trw, border adds 2 → outer = trw+2 (same as tableBox).
 	searchBox := tunnelSearchBoxFocusedStyle.Width(trw).Render(m.search.View())
 
-	help := helpStyle.Render("tab: ssh | ctrl+v: list | ↑↓: navigate | esc: clear | ctrl+a: add | ctrl+e: edit | ctrl+d: del | enter: run")
+	shortcuts := [][2]string{
+		{"tab", "ssh"},
+		{"ctrl+v", "list"},
+		{"↑↓", "navigate"},
+		{"esc", "clear"},
+		{"ctrl+a", "add"},
+		{"ctrl+e", "edit"},
+		{"ctrl+d", "delete"},
+		{"enter", "run"},
+	}
 
-	return title + "\n" + searchBox + "\n" + tableBox + "\n" + help
+	leftBlock := searchBox + "\n" + tableBox
+	leftHeight := strings.Count(leftBlock, "\n") + 1
+	innerHeight := leftHeight - 2 // subtract border top and bottom
+	if innerHeight < 1 {
+		innerHeight = 1
+	}
+
+	shortcutsBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(colorMuted).
+		Height(innerHeight).
+		Padding(0, 1).
+		Render(renderShortcutsPanel(shortcuts, colorAccent))
+
+	panel := lipgloss.NewStyle().PaddingLeft(2).Render(shortcutsBox)
+	mainArea := lipgloss.JoinHorizontal(lipgloss.Top, leftBlock, panel)
+	return title + "\n" + mainArea
 }
