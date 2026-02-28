@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type view int
@@ -24,6 +25,7 @@ const (
 	viewTunnelConfirm
 	viewTableList
 	viewTableTunnelList
+	viewColorPicker
 )
 
 // Model is the root Bubble Tea model.
@@ -55,6 +57,10 @@ type Model struct {
 	tunnelTable       tunnelTableModel
 	tunnelTableInited bool
 
+	// Color picker state.
+	colorPicker colorPickerModel
+	settings    *config.Settings
+
 	// returnToView records where to go back after form/confirm sub-views.
 	returnToView view
 
@@ -70,11 +76,13 @@ type Model struct {
 }
 
 // NewModel creates the initial app model.
-func NewModel(cfg *config.Config, tunnelCfg *config.TunnelConfig, hist *history.History) Model {
+func NewModel(cfg *config.Config, tunnelCfg *config.TunnelConfig, hist *history.History, settings *config.Settings) Model {
+	applyTheme(lipgloss.Color(settings.SSHColor), lipgloss.Color(settings.TunnelColor))
 	return Model{
 		cfg:        cfg,
 		tunnelCfg:  tunnelCfg,
 		hist:       hist,
+		settings:   settings,
 		activeView: viewTableList,
 	}
 }
@@ -122,6 +130,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateServerTableView(msg)
 	case viewTableTunnelList:
 		return m.updateTunnelTableView(msg)
+	case viewColorPicker:
+		return m.updateColorPickerView(msg)
 	}
 	return m, nil
 }
@@ -154,6 +164,8 @@ func (m Model) View() string {
 			return tunnelTitleStyle.Render("SSHH — Tunnels") + "\n\n" + helpStyle.Render("Loading...")
 		}
 		return m.tunnelTable.View() + "\n"
+	case viewColorPicker:
+		return m.colorPicker.View()
 	default:
 		return m.renderListView()
 	}
@@ -518,6 +530,10 @@ func (m Model) updateServerTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = viewTableTunnelList
 		m.refreshTunnelList()
 		return m, m.tunnelTable.Init()
+	case tableViewActionPickColor:
+		m.returnToView = viewTableList
+		m.colorPicker = newColorPickerModel(colorPickerTargetSSH, m.width, m.height)
+		m.activeView = viewColorPicker
 	case tableViewActionQuit:
 		return m, tea.Quit
 	}
@@ -569,11 +585,49 @@ func (m Model) updateTunnelTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = viewTableList
 		m.refreshList()
 		return m, m.serverTable.Init()
+	case tunnelTableActionPickColor:
+		m.returnToView = viewTableTunnelList
+		m.colorPicker = newColorPickerModel(colorPickerTargetTunnel, m.width, m.height)
+		m.activeView = viewColorPicker
 	case tunnelTableActionQuit:
 		return m, tea.Quit
 	}
 
 	return m, cmd
+}
+
+// --- Color picker ---
+
+func (m Model) updateColorPickerView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var action colorPickerAction
+	m.colorPicker, action, _ = m.colorPicker.Update(msg)
+
+	switch action {
+	case colorPickerActionSelect:
+		newColor := m.colorPicker.selectedColor()
+		if m.colorPicker.target == colorPickerTargetSSH {
+			applyTheme(newColor, colorAccent)
+			m.settings.SSHColor = string(newColor)
+		} else {
+			applyTheme(colorPrimary, newColor)
+			m.settings.TunnelColor = string(newColor)
+		}
+		_ = m.settings.Save()
+		// Force table reinit so new styles are applied.
+		m.serverTableInited = false
+		m.tunnelTableInited = false
+		m.activeView = m.returnToView
+		m.refreshList()
+		m.refreshTunnelList()
+		if m.returnToView == viewTableList {
+			return m, m.serverTable.Init()
+		}
+		return m, m.tunnelTable.Init()
+	case colorPickerActionCancel:
+		m.activeView = m.returnToView
+	}
+
+	return m, nil
 }
 
 // dims returns the usable width and height for list views.
