@@ -22,6 +22,8 @@ const (
 	viewTunnelList
 	viewTunnelForm
 	viewTunnelConfirm
+	viewTableList
+	viewTableTunnelList
 )
 
 // Model is the root Bubble Tea model.
@@ -38,12 +40,23 @@ type Model struct {
 	imprt       importModel
 	deleteIndex int
 
+	// SSH table view state.
+	serverTable       serverTableModel
+	serverTableInited bool
+
 	// Tunnel mode state.
 	tunnelList        list.Model
 	tunnelListInited  bool
 	tunnelForm        tunnelFormModel
 	tunnelConfirm     confirmModel
 	tunnelDeleteIndex int
+
+	// Tunnel table view state.
+	tunnelTable       tunnelTableModel
+	tunnelTableInited bool
+
+	// returnToView records where to go back after form/confirm sub-views.
+	returnToView view
 
 	activeView view
 	width      int
@@ -62,7 +75,7 @@ func NewModel(cfg *config.Config, tunnelCfg *config.TunnelConfig, hist *history.
 		cfg:        cfg,
 		tunnelCfg:  tunnelCfg,
 		hist:       hist,
-		activeView: viewList,
+		activeView: viewTableList,
 	}
 }
 
@@ -77,6 +90,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.refreshList()
 		m.refreshTunnelList()
+		switch m.activeView {
+		case viewTableList:
+			return m, m.serverTable.Init()
+		case viewTableTunnelList:
+			return m, m.tunnelTable.Init()
+		case viewConfirm:
+			m.confirm.resize(m.width, m.height)
+		case viewTunnelConfirm:
+			m.tunnelConfirm.resize(m.width, m.height)
+		}
 		return m, nil
 	}
 
@@ -95,6 +118,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTunnelFormView(msg)
 	case viewTunnelConfirm:
 		return m.updateTunnelConfirmView(msg)
+	case viewTableList:
+		return m.updateServerTableView(msg)
+	case viewTableTunnelList:
+		return m.updateTunnelTableView(msg)
 	}
 	return m, nil
 }
@@ -117,6 +144,16 @@ func (m Model) View() string {
 		return m.tunnelForm.View() + "\n"
 	case viewTunnelConfirm:
 		return m.tunnelConfirm.View() + "\n"
+	case viewTableList:
+		if !m.serverTableInited {
+			return titleStyle.Render("SSHH") + "\n\n" + helpStyle.Render("Loading...")
+		}
+		return m.serverTable.View() + "\n"
+	case viewTableTunnelList:
+		if !m.tunnelTableInited {
+			return tunnelTitleStyle.Render("SSHH — Tunnels") + "\n\n" + helpStyle.Render("Loading...")
+		}
+		return m.tunnelTable.View() + "\n"
 	default:
 		return m.renderListView()
 	}
@@ -133,15 +170,24 @@ func (m *Model) refreshList() {
 		originalIndices[i] = idx
 	}
 
-	items := buildListItems(sorted, originalIndices)
+	listItems := buildListItems(sorted, originalIndices)
+	srvItems := buildServerItems(sorted, originalIndices)
 
 	w, h := m.dims()
 	if !m.listInited {
-		m.serverList = newServerList(items, w, h)
+		m.serverList = newServerList(listItems, w, h)
 		m.listInited = true
 	} else {
-		m.serverList.SetItems(items)
+		m.serverList.SetItems(listItems)
 		m.serverList.SetSize(w, h)
+	}
+
+	if !m.serverTableInited {
+		m.serverTable = newServerTableModel(srvItems, w, h)
+		m.serverTableInited = true
+	} else {
+		m.serverTable.setItems(srvItems)
+		m.serverTable.resize(w, h)
 	}
 }
 
@@ -164,12 +210,14 @@ func (m Model) updateListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case listActionAdd:
+		m.returnToView = viewList
 		m.form = newFormModel("Add Server", nil, -1)
 		m.activeView = viewForm
 		return m, m.form.Init()
 	case listActionEdit:
 		s := selectedServer(m.serverList)
 		if s != nil {
+			m.returnToView = viewList
 			m.form = newFormModel("Edit Server", &s.server, s.index)
 			m.activeView = viewForm
 			return m, m.form.Init()
@@ -177,11 +225,14 @@ func (m Model) updateListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case listActionDelete:
 		s := selectedServer(m.serverList)
 		if s != nil {
+			m.returnToView = viewList
 			m.deleteIndex = s.index
 			m.confirm = newConfirmModel(fmt.Sprintf("Delete server %q?", s.server.Name))
+			m.confirm.resize(m.width, m.height)
 			m.activeView = viewConfirm
 		}
 	case listActionImport:
+		m.returnToView = viewList
 		servers, err := sshconfig.Parse()
 		if err != nil {
 			m.imprt = newImportModel(nil)
@@ -198,6 +249,10 @@ func (m Model) updateListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case listActionToggleMode:
 		m.activeView = viewTunnelList
 		m.refreshTunnelList()
+	case listActionToggleTable:
+		m.activeView = viewTableList
+		m.refreshList()
+		return m, m.serverTable.Init()
 	case listActionQuit:
 		return m, tea.Quit
 	}
@@ -224,8 +279,11 @@ func (m Model) updateFormView(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.activeView = viewList
+		m.activeView = m.returnToView
 		m.refreshList()
+		if m.returnToView == viewTableList {
+			return m, m.serverTable.Init()
+		}
 	}
 
 	return m, cmd
@@ -241,8 +299,11 @@ func (m Model) updateConfirmView(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = err
 			}
 		}
-		m.activeView = viewList
+		m.activeView = m.returnToView
 		m.refreshList()
+		if m.returnToView == viewTableList {
+			return m, m.serverTable.Init()
+		}
 	}
 
 	return m, cmd
@@ -261,8 +322,11 @@ func (m Model) updateImportView(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.activeView = viewList
+		m.activeView = m.returnToView
 		m.refreshList()
+		if m.returnToView == viewTableList {
+			return m, m.serverTable.Init()
+		}
 	}
 
 	return m, cmd
@@ -271,14 +335,24 @@ func (m Model) updateImportView(msg tea.Msg) (tea.Model, tea.Cmd) {
 // --- Tunnel list ---
 
 func (m *Model) refreshTunnelList() {
-	items := buildTunnelListItems(m.tunnelCfg.Tunnels)
+	tnlItems := buildTunnelItems(m.tunnelCfg.Tunnels)
+	listItems := buildTunnelListItems(m.tunnelCfg.Tunnels)
+
 	w, h := m.dims()
 	if !m.tunnelListInited {
-		m.tunnelList = newTunnelList(items, w, h)
+		m.tunnelList = newTunnelList(listItems, w, h)
 		m.tunnelListInited = true
 	} else {
-		m.tunnelList.SetItems(items)
+		m.tunnelList.SetItems(listItems)
 		m.tunnelList.SetSize(w, h)
+	}
+
+	if !m.tunnelTableInited {
+		m.tunnelTable = newTunnelTableModel(tnlItems, w, h)
+		m.tunnelTableInited = true
+	} else {
+		m.tunnelTable.setItems(tnlItems)
+		m.tunnelTable.resize(w, h)
 	}
 }
 
@@ -301,12 +375,14 @@ func (m Model) updateTunnelListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tunnelListActionAdd:
+		m.returnToView = viewTunnelList
 		m.tunnelForm = newTunnelFormModel("Add Tunnel", nil, -1)
 		m.activeView = viewTunnelForm
 		return m, m.tunnelForm.Init()
 	case tunnelListActionEdit:
 		t := selectedTunnel(m.tunnelList)
 		if t != nil {
+			m.returnToView = viewTunnelList
 			m.tunnelForm = newTunnelFormModel("Edit Tunnel", &t.tunnel, t.index)
 			m.activeView = viewTunnelForm
 			return m, m.tunnelForm.Init()
@@ -314,13 +390,19 @@ func (m Model) updateTunnelListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tunnelListActionDelete:
 		t := selectedTunnel(m.tunnelList)
 		if t != nil {
+			m.returnToView = viewTunnelList
 			m.tunnelDeleteIndex = t.index
 			m.tunnelConfirm = newConfirmModel(fmt.Sprintf("Delete tunnel %q?", t.tunnel.Name))
+			m.tunnelConfirm.resize(m.width, m.height)
 			m.activeView = viewTunnelConfirm
 		}
 	case tunnelListActionToggleMode:
 		m.activeView = viewList
 		m.refreshList()
+	case tunnelListActionToggleTable:
+		m.activeView = viewTableTunnelList
+		m.refreshTunnelList()
+		return m, m.tunnelTable.Init()
 	case tunnelListActionQuit:
 		return m, tea.Quit
 	}
@@ -347,8 +429,11 @@ func (m Model) updateTunnelFormView(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.activeView = viewTunnelList
+		m.activeView = m.returnToView
 		m.refreshTunnelList()
+		if m.returnToView == viewTableTunnelList {
+			return m, m.tunnelTable.Init()
+		}
 	}
 
 	return m, cmd
@@ -364,8 +449,128 @@ func (m Model) updateTunnelConfirmView(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = err
 			}
 		}
+		m.activeView = m.returnToView
+		m.refreshTunnelList()
+		if m.returnToView == viewTableTunnelList {
+			return m, m.tunnelTable.Init()
+		}
+	}
+
+	return m, cmd
+}
+
+// --- Server table view ---
+
+func (m Model) updateServerTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var action tableViewAction
+	var cmd tea.Cmd
+	m.serverTable, action, cmd = m.serverTable.Update(msg)
+
+	switch action {
+	case tableViewActionConnect:
+		s := m.serverTable.selectedItem()
+		if s != nil {
+			srv := s.server
+			m.ConnectTo = &srv
+			return m, tea.Quit
+		}
+	case tableViewActionAdd:
+		m.returnToView = viewTableList
+		m.form = newFormModel("Add Server", nil, -1)
+		m.activeView = viewForm
+		return m, m.form.Init()
+	case tableViewActionEdit:
+		s := m.serverTable.selectedItem()
+		if s != nil {
+			m.returnToView = viewTableList
+			m.form = newFormModel("Edit Server", &s.server, s.index)
+			m.activeView = viewForm
+			return m, m.form.Init()
+		}
+	case tableViewActionDelete:
+		s := m.serverTable.selectedItem()
+		if s != nil {
+			m.returnToView = viewTableList
+			m.deleteIndex = s.index
+			m.confirm = newConfirmModel(fmt.Sprintf("Delete server %q?", s.server.Name))
+			m.confirm.resize(m.width, m.height)
+			m.activeView = viewConfirm
+		}
+	case tableViewActionImport:
+		m.returnToView = viewTableList
+		servers, err := sshconfig.Parse()
+		if err != nil {
+			m.imprt = newImportModel(nil)
+		} else {
+			var newServers []model.Server
+			for _, s := range servers {
+				if idx, _ := m.cfg.FindByName(s.Name); idx == -1 {
+					newServers = append(newServers, s)
+				}
+			}
+			m.imprt = newImportModel(newServers)
+		}
+		m.activeView = viewImport
+	case tableViewActionToggleList:
+		m.activeView = viewList
+		m.refreshList()
+	case tableViewActionToggleTunnel:
+		m.activeView = viewTableTunnelList
+		m.refreshTunnelList()
+		return m, m.tunnelTable.Init()
+	case tableViewActionQuit:
+		return m, tea.Quit
+	}
+
+	return m, cmd
+}
+
+// --- Tunnel table view ---
+
+func (m Model) updateTunnelTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var action tunnelTableAction
+	var cmd tea.Cmd
+	m.tunnelTable, action, cmd = m.tunnelTable.Update(msg)
+
+	switch action {
+	case tunnelTableActionRun:
+		t := m.tunnelTable.selectedItem()
+		if t != nil {
+			tun := t.tunnel
+			m.RunTunnel = &tun
+			return m, tea.Quit
+		}
+	case tunnelTableActionAdd:
+		m.returnToView = viewTableTunnelList
+		m.tunnelForm = newTunnelFormModel("Add Tunnel", nil, -1)
+		m.activeView = viewTunnelForm
+		return m, m.tunnelForm.Init()
+	case tunnelTableActionEdit:
+		t := m.tunnelTable.selectedItem()
+		if t != nil {
+			m.returnToView = viewTableTunnelList
+			m.tunnelForm = newTunnelFormModel("Edit Tunnel", &t.tunnel, t.index)
+			m.activeView = viewTunnelForm
+			return m, m.tunnelForm.Init()
+		}
+	case tunnelTableActionDelete:
+		t := m.tunnelTable.selectedItem()
+		if t != nil {
+			m.returnToView = viewTableTunnelList
+			m.tunnelDeleteIndex = t.index
+			m.tunnelConfirm = newConfirmModel(fmt.Sprintf("Delete tunnel %q?", t.tunnel.Name))
+			m.tunnelConfirm.resize(m.width, m.height)
+			m.activeView = viewTunnelConfirm
+		}
+	case tunnelTableActionToggleList:
 		m.activeView = viewTunnelList
 		m.refreshTunnelList()
+	case tunnelTableActionToggleSSH:
+		m.activeView = viewTableList
+		m.refreshList()
+		return m, m.serverTable.Init()
+	case tunnelTableActionQuit:
+		return m, tea.Quit
 	}
 
 	return m, cmd
