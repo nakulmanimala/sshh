@@ -69,7 +69,7 @@ func (h *History) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0600)
+	return atomicWrite(p, data, 0600)
 }
 
 // Record marks a server as just used and saves.

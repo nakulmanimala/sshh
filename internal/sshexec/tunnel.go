@@ -1,6 +1,7 @@
 package sshexec
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -103,8 +104,8 @@ func isInterrupt(err error) bool {
 	if err == nil {
 		return false
 	}
-	exitErr, ok := err.(*exec.ExitError)
-	if !ok {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
 		return false
 	}
 	// Exit code -1 means killed by a signal; 130 = 128+SIGINT (common shell convention).

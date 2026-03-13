@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"sshh/internal/config"
 	"sshh/internal/history"
@@ -32,28 +33,37 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		os.Exit(1)
-	}
+	// Load all config files concurrently — they are independent.
+	var (
+		cfg       *config.Config
+		hist      *history.History
+		tunnelCfg *config.TunnelConfig
+		settings  *config.Settings
 
-	hist, err := history.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading history: %v\n", err)
-		os.Exit(1)
-	}
+		cfgErr, histErr, tunnelErr, settingsErr error
 
-	tunnelCfg, err := config.LoadTunnels()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading tunnels: %v\n", err)
-		os.Exit(1)
-	}
+		wg sync.WaitGroup
+	)
+	wg.Add(4)
+	go func() { defer wg.Done(); cfg, cfgErr = config.Load() }()
+	go func() { defer wg.Done(); hist, histErr = history.Load() }()
+	go func() { defer wg.Done(); tunnelCfg, tunnelErr = config.LoadTunnels() }()
+	go func() { defer wg.Done(); settings, settingsErr = config.LoadSettings() }()
+	wg.Wait()
 
-	settings, err := config.LoadSettings()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading settings: %v\n", err)
-		os.Exit(1)
+	for _, e := range []struct {
+		label string
+		err   error
+	}{
+		{"loading config", cfgErr},
+		{"loading history", histErr},
+		{"loading tunnels", tunnelErr},
+		{"loading settings", settingsErr},
+	} {
+		if e.err != nil {
+			fmt.Fprintf(os.Stderr, "Error %s: %v\n", e.label, e.err)
+			os.Exit(1)
+		}
 	}
 
 	// Direct connect mode: sshh <name>

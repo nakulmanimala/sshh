@@ -73,12 +73,19 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0600)
+	return atomicWrite(p, data, 0600)
 }
 
 // AddServer appends a server and saves.
 func (c *Config) AddServer(s model.Server) error {
 	c.Servers = append(c.Servers, s)
+	return c.Save()
+}
+
+// AddServers appends multiple servers and saves exactly once.
+// Prefer this over calling AddServer in a loop.
+func (c *Config) AddServers(servers []model.Server) error {
+	c.Servers = append(c.Servers, servers...)
 	return c.Save()
 }
 

@@ -65,7 +65,7 @@ func (tc *TunnelConfig) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0600)
+	return atomicWrite(p, data, 0600)
 }
 
 // AddTunnel appends a tunnel and saves.
