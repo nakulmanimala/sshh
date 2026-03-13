@@ -176,10 +176,16 @@ func (m Model) View() string {
 func (m *Model) refreshList() {
 	sorted := m.hist.SortByRecent(m.cfg.Servers)
 
+	// Build a name→index map once (O(n)) instead of calling FindByName
+	// in a loop (O(n²)).
+	nameToIdx := make(map[string]int, len(m.cfg.Servers))
+	for i, s := range m.cfg.Servers {
+		nameToIdx[s.Name] = i
+	}
+
 	originalIndices := make([]int, len(sorted))
 	for i, s := range sorted {
-		idx, _ := m.cfg.FindByName(s.Name)
-		originalIndices[i] = idx
+		originalIndices[i] = nameToIdx[s.Name]
 	}
 
 	listItems := buildListItems(sorted, originalIndices)
@@ -327,10 +333,11 @@ func (m Model) updateImportView(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.imprt.done {
 		if m.imprt.imported {
-			for _, s := range m.imprt.SelectedServers() {
-				if err := m.cfg.AddServer(s); err != nil {
+			// AddServers appends all at once and saves a single time,
+			// avoiding N disk writes for N imported servers.
+			if selected := m.imprt.SelectedServers(); len(selected) > 0 {
+				if err := m.cfg.AddServers(selected); err != nil {
 					m.err = err
-					break
 				}
 			}
 		}
