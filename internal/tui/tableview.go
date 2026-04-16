@@ -204,17 +204,14 @@ func (m *serverTableModel) resize(width, height int) {
 }
 
 func (m *serverTableModel) applyFilter(query string) {
-	if query == "" {
+	if normalizeForSearch(query) == "" {
 		m.filtered = m.allItems
 	} else {
-		q := strings.ToLower(query)
 		var out []serverItem
 		for _, item := range m.allItems {
-			hay := strings.ToLower(
-				item.server.Name + " " + item.server.Host + " " +
-					item.server.User + " " + strings.Join(item.server.Tags, " "),
-			)
-			if strings.Contains(hay, q) {
+			hay := item.server.Name + " " + item.server.Host + " " +
+				item.server.User + " " + strings.Join(item.server.Tags, " ")
+			if matchesNormalized(hay, query) {
 				out = append(out, item)
 			}
 		}

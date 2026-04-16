@@ -82,6 +82,7 @@ func newTunnelList(items []list.Item, width, height int) list.Model {
 	l.Styles.Title = tunnelTitleStyle
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
+	l.Filter = normalizedSubstringFilter
 	l.SetShowHelp(false)
 	l.DisableQuitKeybindings()
 	return l
