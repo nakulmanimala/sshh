@@ -75,6 +75,7 @@ func newServerList(items []list.Item, width, height int) list.Model {
 	l.Styles.Title = titleStyle
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
+	l.Filter = normalizedSubstringFilter
 	l.SetShowHelp(false) // We use custom help.
 	l.DisableQuitKeybindings()
 	return l

@@ -182,14 +182,13 @@ func (m *tunnelTableModel) resize(width, height int) {
 }
 
 func (m *tunnelTableModel) applyFilter(query string) {
-	if query == "" {
+	if normalizeForSearch(query) == "" {
 		m.filtered = m.allItems
 	} else {
-		q := strings.ToLower(query)
 		var out []tunnelItem
 		for _, item := range m.allItems {
-			hay := strings.ToLower(item.tunnel.Name + " " + item.tunnel.SSHHost + " " + string(item.tunnel.Type))
-			if strings.Contains(hay, q) {
+			hay := item.tunnel.Name + " " + item.tunnel.SSHHost + " " + string(item.tunnel.Type)
+			if matchesNormalized(hay, query) {
 				out = append(out, item)
 			}
 		}
