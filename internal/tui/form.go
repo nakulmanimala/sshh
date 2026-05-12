@@ -64,6 +64,8 @@ func newFormModel(title string, s *model.Server, index int) formModel {
 		m.inputs[fieldPort].SetValue(strconv.Itoa(s.Port))
 		m.inputs[fieldKey].SetValue(s.Key)
 		m.inputs[fieldTags].SetValue(strings.Join(s.Tags, ", "))
+	} else {
+		m.inputs[fieldPort].SetValue("22")
 	}
 
 	m.inputs[m.focused].Focus()
