@@ -9,8 +9,9 @@ import (
 
 // Settings holds user preferences persisted to ~/.sshh/settings.yaml.
 type Settings struct {
-	SSHColor    string `yaml:"ssh_color"`
-	TunnelColor string `yaml:"tunnel_color"`
+	SSHColor       string `yaml:"ssh_color"`
+	TunnelColor    string `yaml:"tunnel_color"`
+	AWSDefaultUser string `yaml:"aws_default_user,omitempty"`
 }
 
 func settingsFilePath() (string, error) {

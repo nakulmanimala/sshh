@@ -107,6 +107,34 @@ func (c *Config) DeleteServer(i int) error {
 	return c.Save()
 }
 
+// ApplyAWSSync updates existing servers by index, removes servers at the
+// given indices (stale AWS-managed entries), and appends new ones, saving once.
+// removeIdx indices refer to positions before removal, same as updates.
+func (c *Config) ApplyAWSSync(updates map[int]model.Server, adds []model.Server, removeIdx []int) error {
+	for i, s := range updates {
+		if i >= 0 && i < len(c.Servers) {
+			c.Servers[i] = s
+		}
+	}
+
+	if len(removeIdx) > 0 {
+		remove := make(map[int]bool, len(removeIdx))
+		for _, i := range removeIdx {
+			remove[i] = true
+		}
+		kept := c.Servers[:0]
+		for i, s := range c.Servers {
+			if !remove[i] {
+				kept = append(kept, s)
+			}
+		}
+		c.Servers = kept
+	}
+
+	c.Servers = append(c.Servers, adds...)
+	return c.Save()
+}
+
 // FindByName returns the index and server with the given name, or -1 if not found.
 func (c *Config) FindByName(name string) (int, *model.Server) {
 	for i := range c.Servers {

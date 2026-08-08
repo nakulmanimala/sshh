@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	"sshh/internal/awssync"
 	"sshh/internal/config"
 	"sshh/internal/history"
 	"sshh/internal/model"
@@ -20,6 +21,9 @@ const (
 	viewForm
 	viewConfirm
 	viewImport
+	viewAWSUsername
+	viewAWSProfile
+	viewAWSSync
 	viewTunnelList
 	viewTunnelForm
 	viewTunnelConfirm
@@ -40,6 +44,9 @@ type Model struct {
 	form        formModel
 	confirm     confirmModel
 	imprt       importModel
+	awsUsername awsUsernameModel
+	awsProfile  awsProfileModel
+	awsSync     awsSyncModel
 	deleteIndex int
 
 	// SSH table view state.
@@ -109,6 +116,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.tunnelConfirm.resize(m.width, m.height)
 		}
 		return m, nil
+	case awsInstancesMsg:
+		m.awsSync.setResult(msg.servers, m.cfg.Servers, m.settings.AWSDefaultUser, msg.err)
+		return m, nil
 	}
 
 	switch m.activeView {
@@ -120,6 +130,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateConfirmView(msg)
 	case viewImport:
 		return m.updateImportView(msg)
+	case viewAWSUsername:
+		return m.updateAWSUsernameView(msg)
+	case viewAWSProfile:
+		return m.updateAWSProfileView(msg)
+	case viewAWSSync:
+		return m.updateAWSSyncView(msg)
 	case viewTunnelList:
 		return m.updateTunnelListView(msg)
 	case viewTunnelForm:
@@ -148,6 +164,12 @@ func (m Model) View() string {
 		return m.confirm.View() + "\n"
 	case viewImport:
 		return m.imprt.View() + "\n"
+	case viewAWSUsername:
+		return m.awsUsername.View() + "\n"
+	case viewAWSProfile:
+		return m.awsProfile.View() + "\n"
+	case viewAWSSync:
+		return m.awsSync.View() + "\n"
 	case viewTunnelList:
 		return m.renderTunnelListView()
 	case viewTunnelForm:
@@ -264,6 +286,8 @@ func (m Model) updateListView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.imprt = newImportModel(newServers)
 		}
 		m.activeView = viewImport
+	case listActionAWSSync:
+		return m.startAWSSync(viewList)
 	case listActionToggleMode:
 		m.activeView = viewTunnelList
 		m.refreshTunnelList()
@@ -337,6 +361,94 @@ func (m Model) updateImportView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// avoiding N disk writes for N imported servers.
 			if selected := m.imprt.SelectedServers(); len(selected) > 0 {
 				if err := m.cfg.AddServers(selected); err != nil {
+					m.err = err
+				}
+			}
+		}
+		m.activeView = m.returnToView
+		m.refreshList()
+		if m.returnToView == viewTableList {
+			return m, m.serverTable.Init()
+		}
+	}
+
+	return m, cmd
+}
+
+// --- AWS sync ---
+
+// startAWSSync begins the AWS sync flow from the given view, prompting for a
+// default username first if one isn't configured yet.
+func (m Model) startAWSSync(from view) (tea.Model, tea.Cmd) {
+	m.returnToView = from
+	if m.settings.AWSDefaultUser == "" {
+		m.awsUsername = newAWSUsernameModel("")
+		m.activeView = viewAWSUsername
+		return m, m.awsUsername.Init()
+	}
+	return m.enterAWSProfilePicker()
+}
+
+// enterAWSProfilePicker lists AWS CLI profiles and shows the picker view.
+func (m Model) enterAWSProfilePicker() (tea.Model, tea.Cmd) {
+	profiles, err := awssync.ListProfiles()
+	if err != nil || len(profiles) == 0 {
+		profiles = []string{"default"}
+	}
+	m.awsProfile = newAWSProfileModel(profiles)
+	m.activeView = viewAWSProfile
+	return m, nil
+}
+
+func (m Model) updateAWSUsernameView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.awsUsername, cmd = m.awsUsername.Update(msg)
+
+	if m.awsUsername.done {
+		if m.awsUsername.saved {
+			m.settings.AWSDefaultUser = m.awsUsername.Username()
+			if err := m.settings.Save(); err != nil {
+				m.err = err
+				return m, nil
+			}
+			return m.enterAWSProfilePicker()
+		}
+		m.activeView = m.returnToView
+		return m, nil
+	}
+
+	return m, cmd
+}
+
+func (m Model) updateAWSProfileView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.awsProfile, cmd = m.awsProfile.Update(msg)
+
+	if m.awsProfile.done {
+		if m.awsProfile.picked {
+			profile := m.awsProfile.SelectedProfile()
+			m.awsSync = newAWSSyncModel()
+			m.activeView = viewAWSSync
+			return m, fetchAWSInstancesCmd(profile)
+		}
+		m.activeView = m.returnToView
+		return m, nil
+	}
+
+	return m, cmd
+}
+
+func (m Model) updateAWSSyncView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.awsSync, cmd = m.awsSync.Update(msg)
+
+	if m.awsSync.done {
+		if m.awsSync.applied {
+			updates := m.awsSync.SelectedUpdates()
+			adds := m.awsSync.SelectedAdds()
+			removes := m.awsSync.SelectedRemoves()
+			if len(updates) > 0 || len(adds) > 0 || len(removes) > 0 {
+				if err := m.cfg.ApplyAWSSync(updates, adds, removes); err != nil {
 					m.err = err
 				}
 			}
@@ -530,6 +642,8 @@ func (m Model) updateServerTableView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.imprt = newImportModel(newServers)
 		}
 		m.activeView = viewImport
+	case tableViewActionAWSSync:
+		return m.startAWSSync(viewTableList)
 	case tableViewActionToggleList:
 		m.activeView = viewList
 		m.refreshList()
