@@ -1,3 +1,7 @@
 sshh
 # Added by goreleaser init:
 dist/
+
+# Release credentials — never commit these.
+.env.release
+.env
